@@ -77,7 +77,9 @@ function initDataCollection() {
         shippingData.zipCode &&
         shippingData.country &&
         shippingData.phoneNumber) {
+
         setShippingData(shippingData);
+
     } else {
         setShippingData(false);
     }
@@ -95,6 +97,10 @@ function setShippingData(data) {
     if (data) {
         let shippingData = `${data.buyerName}\n${data.companyName}\n${data.streetAddress}\n${data.city}, ${data.state}, ${data.zipCode}  ${data.country}\nT: ${data.phoneNumber}`;
         range.setValue(shippingData);
+
+        let clearRange = SpreadsheetApp.getActiveSpreadsheet().getRange(`L${activeRow}`);
+        clearRange.clear();
+
     } else {
         range.setValue('Info is not completed yet. Please try again')
     }
