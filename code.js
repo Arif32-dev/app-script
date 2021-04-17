@@ -167,7 +167,7 @@ function row_values(e) {
 
         let is_pdf_generated = active_sheet.getRange(`L${current_row}`).getValues()[0][0];
 
-        if (is_pdf_generated.match(/WC\d+/g)) return false;
+        if (is_pdf_generated.match(/WC\d+/g) || is_pdf_generated == 'View BOL') return false;
 
         clear_warning(e);
 
