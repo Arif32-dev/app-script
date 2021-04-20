@@ -8,7 +8,7 @@ function atEdit(e) {
 
     switch (response_data.type) {
         case 'success':
-            set_value_on_success(response_data.response, response_data.bol_ID, e);
+            set_value_on_success(response_data.response.bol_link, response_data.response.shipping_link, response_data.bol_ID, e);
             break;
         case 'error':
             show_warning(e, response_data.response);
@@ -241,11 +241,12 @@ function clear_warning(e) {
     range.clear();
 }
 
-function set_value_on_success(pdf_link, bol_ID, e) {
+function set_value_on_success(pdf_link, shipping_link, bol_ID, e) {
     let { active_sheet, current_row } = get_event_data(e)
-    let range = active_sheet.getRange(`L${current_row}`);
-    let value = `=HYPERLINK("${pdf_link}", "WC${bol_ID}")`;
-    range.setValue(value);
+    let range = active_sheet.getRange(`L${current_row}:M${current_row}`);
+    let pdfLink = `=HYPERLINK("${pdf_link}", "WC${bol_ID}")`;
+    let shippingLink = `=HYPERLINK("${shipping_link}", "Shipping Label")`;
+    range.setValues([[pdfLink, shippingLink]]);
     range.setFontColor("cornflower blue");
     range.setHorizontalAlignment("center");
     range.setVerticalAlignment("middle");
