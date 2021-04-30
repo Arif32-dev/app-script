@@ -3,12 +3,19 @@ function atEdit(e) {
     if (!row_data) return;
 
     let response = get_bol_data(row_data);
+
+    Logger.log(response);
+
     if (!response) return;
     let response_data = JSON.parse(response);
 
     switch (response_data.type) {
         case 'success':
-            set_value_on_success(response_data.response.bol_link, response_data.response.shipping_link, response_data.bol_ID, e);
+            if (row_data.url != undefined) {
+                set_value_on_success(response_data.pdf_link, response_data.shipping_link, 'bolFetching', e);
+            } else {
+                set_value_on_success(response_data.response.bol_link, response_data.response.shipping_link, response_data.bol_ID, e);
+            }
             break;
         case 'error':
             show_warning(e, response_data.response);
@@ -118,44 +125,47 @@ function openPropmt(requiredText) {
 }
 
 function split_shipping_data(shipping_data, e) {
-    if (!shipping_data) return show_warning(e, "Shipping data is empty");
-    let shipping_array = shipping_data.split(/\n/);
 
-    if (shipping_array.length <= 4) return show_warning(e, 'Field missing');
+    let { spreadsheet, current_row } = get_event_data(e);
 
-    let location = shipping_array[3] ? shipping_array[3].split(',') : null;
-    if (!location) return false;
-    let shipping_obj = {
-        'name': shipping_array[0] ? shipping_array[0].trim() : null,
-        'company_name': shipping_array[1] ? shipping_array[1].trim() : null,
-        'address': shipping_array[2] ? shipping_array[2].trim() : null,
-        'city': location[0] ? location[0].trim() : null,
-        'state': location[1] ? location[1].trim() : null,
-        'zip': location[2] ? location[2].split(" ") ? location[2].trim().split(" ")[0].trim() : null : null,
-        'country': "USA",
-        'phone': shipping_array[4] ? shipping_array[4].trim().replace("T:", "").trim() : null,
+    let values = spreadsheet.getRange(`E${current_row}:K${current_row}`).getValues();
+    let source = values[0][5] ? values[0][5] : null;
+    let carrier = values[0][6] ? values[0][6] : null;
+
+    if (source == 'USCD' || carrier == 'R&L') {
+
+        if (!shipping_data) return show_warning(e, "Shipping data is empty");
+        let shipping_array = shipping_data.split(/\n/);
+
+        if (shipping_array.length <= 4) return show_warning(e, 'Field missing');
+
+        let location = shipping_array[3] ? shipping_array[3].split(',') : null;
+        if (!location) return false;
+        let shipping_obj = {
+            'name': shipping_array[0] ? shipping_array[0].trim() : null,
+            'company_name': shipping_array[1] ? shipping_array[1].trim() : null,
+            'address': shipping_array[2] ? shipping_array[2].trim() : null,
+            'city': location[0] ? location[0].trim() : null,
+            'state': location[1] ? location[1].trim() : null,
+            'zip': location[2] ? location[2].split(" ") ? location[2].trim().split(" ")[0].trim() : null : null,
+            'country': "USA",
+            'phone': shipping_array[4] ? shipping_array[4].trim().replace("T:", "").trim() : null,
+        }
+
+        let warning_msg = 'Field missing';
+
+        if (!shipping_obj.name ||
+            !shipping_obj.company_name ||
+            !shipping_obj.address ||
+            !shipping_obj.city ||
+            !shipping_obj.state ||
+            !shipping_obj.zip ||
+            !shipping_obj.country ||
+            !shipping_obj.phone) return show_warning(e, warning_msg);
+
+        return shipping_obj;
+
     }
-
-    let warning_msg = 'Field missing';
-
-    if (!shipping_obj.name) return show_warning(e, warning_msg);
-
-    if (!shipping_obj.company_name) return show_warning(e, warning_msg);
-
-    if (!shipping_obj.address) return show_warning(e, warning_msg);
-
-    if (!shipping_obj.city) return show_warning(e, warning_msg);
-
-    if (!shipping_obj.state) return show_warning(e, warning_msg);
-
-    if (!shipping_obj.zip) return show_warning(e, warning_msg);
-
-    if (!shipping_obj.country) return show_warning(e, warning_msg);
-
-    if (!shipping_obj.phone) return show_warning(e, warning_msg);
-
-
-    return shipping_obj;
 }
 
 function row_values(e) {
@@ -165,36 +175,60 @@ function row_values(e) {
 
         if (current_column > 11) return false;
 
-        let is_pdf_generated = active_sheet.getRange(`L${current_row}`).getValues()[0][0];
+        let hasValue = active_sheet.getRange(`L${current_row}`).getValues()[0][0];
 
-        if (is_pdf_generated.match(/WC\d+/g) || is_pdf_generated == 'View BOL') return false;
 
-        clear_warning(e);
+        if (hasValue) return;
 
-        let values = spreadsheet.getRange(`E${current_row}:K${current_row}`).getValues();
+        if (current_column == 10 || current_column == 11) {
 
-        let order_date = values[0][0] ? values[0][0] : null;
-        let order_number = values[0][3] ? values[0][3] : null;
-        let shipping_data = split_shipping_data(values[0][4] ? values[0][4] : null, e) ? split_shipping_data(values[0][4] ? values[0][4] : null, e) : null;
-        let source = values[0][5] ? values[0][5] : null;
-        let carrier = values[0][6] ? values[0][6] : null;
+            let values = spreadsheet.getRange(`E${current_row}:K${current_row}`).getValues();
 
-        if (!order_date) return show_warning(e, "Order date is empty");
-        if (!order_number) return show_warning(e, "Order number is empty");
-        if (!shipping_data) return false;
-        if (source != 'USCD') return show_warning(e, "Source need's to be USCD");
-        if (carrier != 'R&L') return show_warning(e, "Carrier need's to be R&L");
+            let order_date = values[0][0] ? values[0][0] : null;
+            let order_number = values[0][3] ? values[0][3] : null;
+            let shipping_data = split_shipping_data(values[0][4] ? values[0][4] : null, e) ? split_shipping_data(values[0][4] ? values[0][4] : null, e) : null;
+            let source = values[0][5] ? values[0][5] : null;
+            let carrier = values[0][6] ? values[0][6] : null;
 
-        return {
-            order_date,
-            order_number,
-            shipping_data,
-            source,
-            carrier
+            if (source == 'Hoodsly' || source == 'WWH') {
+                let getUrl = hoodslyOrWWH(order_number, source);
+                return {
+                    url: getUrl
+                }
+            }
+
+
+            if (source == 'USCD' || carrier == 'R&L') {
+
+                if (!order_date) return show_warning(e, "Order date is empty");
+                if (!order_number) return show_warning(e, "Order number is empty");
+                if (!shipping_data) return false;
+
+                return {
+                    order_date,
+                    order_number,
+                    shipping_data,
+                    source,
+                    carrier
+                }
+            }
         }
+
     } else {
         return false;
     }
+}
+
+function hoodslyOrWWH(order_number, source) {
+    let url = null;
+    if (source == 'Hoodsly') {
+        url = "https://hoodsly.com/wp-json/generate_bol/v1/bol-fetching?orderID=" + order_number + "";
+        return url;
+    } else if (source == 'WWH') {
+        url = "https://wholesalewoodhoods.com/wp-json/generate_bol/v1/bol-fetching?orderID=" + order_number + "";
+        return url;
+    }
+    return url;
 }
 
 function get_event_data(e) {
@@ -209,6 +243,14 @@ function get_event_data(e) {
 }
 
 function get_bol_data(data) {
+    if (data.url != undefined) {
+
+        if (data.url == "") return false;
+
+        let response = UrlFetchApp.fetch(data.url);
+        return response;
+    }
+
     if (!data.order_date ||
         !data.order_number ||
         !data.shipping_data ||
@@ -216,7 +258,7 @@ function get_bol_data(data) {
         !data.carrier) return false;
 
     let url = "https://hoodsly.com/wp-json/spreadsheet/v1/bol-generation";
-    var options = {
+    let options = {
         'method': 'post',
         'contentType': 'application/json',
         'payload': JSON.stringify(data)
@@ -226,13 +268,8 @@ function get_bol_data(data) {
 };
 
 function show_warning(e, msg) {
-    let { active_sheet, current_row } = get_event_data(e)
-    let range = active_sheet.getRange(`L${current_row}`);
-    range.setValue(msg)
-    range.setFontColor("red");
-    range.setHorizontalAlignment("center");
-    range.setVerticalAlignment("middle");
-    return false;
+    let ui = SpreadsheetApp.getUi();
+    let response = ui.alert(msg);
 }
 
 function clear_warning(e) {
@@ -242,11 +279,24 @@ function clear_warning(e) {
 }
 
 function set_value_on_success(pdf_link, shipping_link, bol_ID, e) {
+
     let { active_sheet, current_row } = get_event_data(e)
     let range = active_sheet.getRange(`L${current_row}:M${current_row}`);
-    let pdfLink = `=HYPERLINK("${pdf_link}", "WC${bol_ID}")`;
-    let shippingLink = `=HYPERLINK("${shipping_link}", "Shipping Label")`;
-    range.setValues([[pdfLink, shippingLink]]);
+
+    let pdfLink = '';
+    let shippingLink = '';
+
+    if (bol_ID == 'bolFetching') {
+        pdfLink = `=HYPERLINK("${pdf_link}", "View BOL")`;
+        shippingLink = `=HYPERLINK("${shipping_link}", "Shipping Label")`;
+    } else {
+        pdfLink = `=HYPERLINK("${pdf_link}", "WC${bol_ID}")`;
+        shippingLink = `=HYPERLINK("${shipping_link}", "Shipping Label")`;
+    }
+
+    range.setValues([
+        [pdfLink, shippingLink]
+    ]);
     range.setFontColor("cornflower blue");
     range.setHorizontalAlignment("center");
     range.setVerticalAlignment("middle");
