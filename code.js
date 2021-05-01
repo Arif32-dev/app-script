@@ -18,13 +18,11 @@ function atEdit(e) {
             }
             break;
         case 'error':
-            show_warning(e, response_data.response);
+            show_warning(e, "BOL could'nt be generated. Check if the order and BOL pdf exists in website");
             break;
         default:
             return false;
     }
-
-    Logger.log(response_data);
 
 }
 
@@ -132,7 +130,7 @@ function split_shipping_data(shipping_data, e) {
     let source = values[0][5] ? values[0][5] : null;
     let carrier = values[0][6] ? values[0][6] : null;
 
-    if (source == 'USCD' || carrier == 'R&L') {
+    if (source == 'USCD' && carrier == 'R&L') {
 
         if (!shipping_data) return show_warning(e, "Shipping data is empty");
         let shipping_array = shipping_data.split(/\n/);
@@ -177,7 +175,7 @@ function row_values(e) {
 
         let hasValue = active_sheet.getRange(`L${current_row}`).getValues()[0][0];
 
-
+        // if already value exist, do nothing
         if (hasValue) return;
 
         if (current_column == 10 || current_column == 11) {
@@ -186,7 +184,6 @@ function row_values(e) {
 
             let order_date = values[0][0] ? values[0][0] : null;
             let order_number = values[0][3] ? values[0][3] : null;
-            let shipping_data = split_shipping_data(values[0][4] ? values[0][4] : null, e) ? split_shipping_data(values[0][4] ? values[0][4] : null, e) : null;
             let source = values[0][5] ? values[0][5] : null;
             let carrier = values[0][6] ? values[0][6] : null;
 
@@ -197,8 +194,9 @@ function row_values(e) {
                 }
             }
 
+            let shipping_data = split_shipping_data(values[0][4] ? values[0][4] : null, e) ? split_shipping_data(values[0][4] ? values[0][4] : null, e) : null;
 
-            if (source == 'USCD' || carrier == 'R&L') {
+            if (source == 'USCD' && carrier == 'R&L') {
 
                 if (!order_date) return show_warning(e, "Order date is empty");
                 if (!order_number) return show_warning(e, "Order number is empty");
@@ -269,7 +267,7 @@ function get_bol_data(data) {
 
 function show_warning(e, msg) {
     let ui = SpreadsheetApp.getUi();
-    let response = ui.alert(msg);
+    ui.alert(msg);
 }
 
 function clear_warning(e) {
